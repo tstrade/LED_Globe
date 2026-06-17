@@ -21,8 +21,9 @@ void
 ssi_init (SSI_MODULE module, SSI_CONFIGS * config)
 {
     enable_clock (SSI, module);
-    
+
     ssi_t * ssi_mod = get_ssi_base (module);
+
     // Disable 
     ssi_mod->CR1 &= 0xFFFFFFFD;
 
@@ -38,14 +39,12 @@ ssi_init (SSI_MODULE module, SSI_CONFIGS * config)
     else if (config->clock_source == PIOSC)
         *(volatile uint32_t *)(ssi_mod + SSICC) = 0x5;
 
-    // Clk mult
-    ssi_mod->CR0 |= ((uint32_t)(config->clock_multiplier) << 8);
-
-    // Clk phase
-    if (config->clock_phase == FIRST_EDGE)
-        ssi_mod->CR0 &= 0xFFFFFF7F;
-    else if (config->clock_phase == SECOND_EDGE)
-        ssi_mod->CR0 |= 0x080;
+    // Clk prescale divisor 
+    ssi_mod->CPSR = (uint32_t)config->prescale_divisor;
+    // Bit Rate = SysClk / (CPSDVSR * (1 + SRC))
+    //  -> SRC = (SysClk / CPSDVSR * Bit Rate) - 1
+    uint8_t src = (SYS_CLK_RATE / (config->bit_rate * config->prescale_divisor)) - 1;
+    ssi_mod->CR0 |= ((uint32_t)(src) << 8);
 
     // Clk polarity
     if (config->polarity == STEADY_STATE_LOW)
@@ -55,17 +54,39 @@ ssi_init (SSI_MODULE module, SSI_CONFIGS * config)
 
     // Frame format
     if (config->frame_format == FREESCALE)
+    {
         ssi_mod->CR0 &= 0xFFFFFFCF;
+        // Clk phase
+        if (config->clock_phase == FIRST_EDGE)
+            ssi_mod->CR0 &= 0xFFFFFF7F;
+        else if (config->clock_phase == SECOND_EDGE)
+            ssi_mod->CR0 |= 0x080;
+    }
     else if (config->frame_format == TI)
+    {
         ssi_mod->CR0 |= 0x10;
+    }
     else if (config->frame_format == MICROWIRE)
+    {
         ssi_mod->CR0 |= 0x20;
+    }
 
     // Datasize
     if (config->data_size >= 4 && config->data_size <= 16)
         ssi_mod->CR0 |= (config->data_size - 1);
     else
         ssi_mod->CR0 |= 0x0F; // 16-bit if config invalid
+
+    // DMA control
+    if (config->transmit_dma == ENABLED)
+        ssi_mod->DMACTL |= 0x2;
+    else if (config->transmit_dma == DISABLED)
+        ssi_mod->DMACTL &= 0xFFFFFFFD;
+
+    if (config->receive_dma == ENABLED)
+        ssi_mod->DMACTL |= 0x1;
+    else if (config->receive_dma == DISABLED)
+        ssi_mod->DMACTL &= 0xFFFFFFFE;
 
     // Enable
     ssi_mod->CR1 |= 0x2;

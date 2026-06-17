@@ -30,6 +30,8 @@ typedef enum
             while ( !(*(volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PR##periph) & (0x1 << module)) );    \
         }
 
+#define SYS_CLK_RATE 0x00F42400 // 16 MHz
+
 /****************************************************************/
 const uint32_t  CM4_PERIPHS_BASE_ADDR = (uint32_t)(0xE000E000);
 const uint32_t  EN0                   = (uint32_t)(0x100); // Interrupt 0-31 Set Enable

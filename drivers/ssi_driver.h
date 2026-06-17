@@ -59,11 +59,14 @@ typedef struct
     mode_t loopback;
     SSI_CTRL master_slave;
     SSI_CLKSRC clock_source;
-    uint8_t clock_multiplier;
     SSI_CLKPHASE clock_phase;
     SSI_POLARITY polarity;
     SSI_FRAMEFORMAT frame_format;
     uint8_t data_size;
+    uint32_t bit_rate;
+    uint8_t prescale_divisor;
+    mode_t transmit_dma;
+    mode_t receive_dma;
 } SSI_CONFIGS __attribute__ ((packed));
 
 typedef struct
