@@ -80,8 +80,6 @@ typedef struct
     volatile uint32_t DMACTL;   // 0x024
 } ssi_t;
 
-static inline ssi_t * get_ssi_base (SSI_MODULE module);
-
 void ssi_init (SSI_MODULE module, SSI_CONFIGS * config);
 uint16_t ssi_read (SSI_MODULE module);
 void ssi_write (SSI_MODULE module, uint16_t data);
