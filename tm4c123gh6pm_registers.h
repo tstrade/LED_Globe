@@ -3,7 +3,32 @@
 
 #include <inttypes.h>
 
+#ifndef NULL
+#define NULL ((char *)0)
+#endif /* NULL */
 
+#ifndef bool
+typedef enum { false, true } bool;
+#endif /* bool */
+
+typedef enum 
+{
+    APB = 0,
+    AHB = 1
+} port_t __attribute__ ((packed));
+
+typedef enum
+{
+    DISABLED = 0,
+    ENABLED = 1,
+} mode_t __attribute__ ((packed));
+
+#define enable_clock(periph,module) \
+        {           \
+            enum PORTS { A, B, C, D, E, F };    \
+            *(volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + RCGC##periph) |= (0x1 << module);      \
+            while ( !(*(volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PR##periph) & (0x1 << module)) );    \
+        }
 
 /****************************************************************/
 const uint32_t  CM4_PERIPHS_BASE_ADDR = (uint32_t)(0xE000E000);
@@ -38,8 +63,11 @@ const uint32_t  RCGCTIMER             = (uint32_t)(0x604); // 16/32-Bit General-
 const uint32_t  RCGCGPIO              = (uint32_t)(0x608); // General-Purpose Input/Output Run Mode Clock Gating Control
 const uint32_t  RCGCDMA               = (uint32_t)(0x60C); // Micro Direct Memory Access Run Mode Clock Gating Control
 const uint32_t  RCGCUART              = (uint32_t)(0x618); // Universal Asynchronous Receiver/Transmitter Run Mode Clock Gating Control
+const uint32_t  RCGCSSI               = (uint32_t)(0x61C); // Synchronous Serial Interface Run Mode Clock Gating Control
 const uint32_t  RCGCUSB               = (uint32_t)(0x628); // Universal Serial Bus Run Mode Clock Gating Control
 const uint32_t  RCGCPWM               = (uint32_t)(0x640); // Pulse Width Modulation Run Mode Clock Gating Control
+const uint32_t  PRGPIO                = (uint32_t)(0xA08); // General-Purpose Input-Output Peripheral Ready
+const uint32_t  PRSSI                 = (uint32_t)(0xA1C); // Synchronous Serial Interface Peripheral Ready
 /****************************************************************/
 
 
@@ -136,6 +164,38 @@ const uint32_t  UARTFBRD              = (uint32_t)(0x028); // Fractional Baud-Ra
 const uint32_t  UARTLCRH              = (uint32_t)(0x02C); // Line Control
 const uint32_t  UARTCTL               = (uint32_t)(0x030); // Control
 const uint32_t  UARTCC                = (uint32_t)(0xFC8); // Clock Configuration
+/****************************************************************/
+
+
+
+/****************************************************************/
+const uint32_t  SYNC_SIMOD0_BASE_ADDR = (uint32_t)(0x40008000);
+const uint32_t  SYNC_SIMOD1_BASE_ADDR = (uint32_t)(0x40009000);
+const uint32_t  SYNC_SIMOD2_BASE_ADDR = (uint32_t)(0x4000A000);
+const uint32_t  SYNC_SIMOD3_BASE_ADDR = (uint32_t)(0x4000B000);
+const uint32_t  SSICR0                = (uint32_t)(0x000); // SSI Control 0
+const uint32_t  SSICR1                = (uint32_t)(0x004); // SSI Control 1
+const uint32_t  SSIDR                 = (uint32_t)(0x008); // SSI Data
+const uint32_t  SSISR                 = (uint32_t)(0x00C); // SSI Status
+const uint32_t  SSICPSR               = (uint32_t)(0x010); // SSI Clock Peripheral
+const uint32_t  SSIIM                 = (uint32_t)(0x014); // SSI Interrupt Mask
+const uint32_t  SSIRIS                = (uint32_t)(0x018); // SSI Raw Interrupt Status
+const uint32_t  SSIMIS                = (uint32_t)(0x01C); // SSI Masked Interrupt Status
+const uint32_t  SSIICR                = (uint32_t)(0x020); // SSI Interrupt Clear
+const uint32_t  SSIDMACTL             = (uint32_t)(0x024); // SSI DMA Control
+const uint32_t  SSICC                 = (uint32_t)(0xFC8); // SSI Clock Configuration
+const uint32_t  SSIPeriphID4          = (uint32_t)(0xFD0); // Peripheral Identification 4
+const uint32_t  SSIPeriphID5          = (uint32_t)(0xFD4); // Peripheral Identification 5
+const uint32_t  SSIPeriphID6          = (uint32_t)(0xFD8); // Peripheral Identification 6
+const uint32_t  SSIPeriphID7          = (uint32_t)(0xFDC); // Peripheral Identification 7
+const uint32_t  SSIPeriphID0          = (uint32_t)(0xFE0); // Peripheral Identification 0
+const uint32_t  SSIPeriphID1          = (uint32_t)(0xFE4); // Peripheral Identification 1
+const uint32_t  SSIPeriphID2          = (uint32_t)(0xFE8); // Peripheral Identification 2
+const uint32_t  SSIPeriphID3          = (uint32_t)(0xFEC); // Peripheral Identification 3
+const uint32_t  SSIPCellID0           = (uint32_t)(0xFF0); // PrimeCell Identification 0
+const uint32_t  SSIPCellID1           = (uint32_t)(0xFF4); // PrimeCell Identification 1
+const uint32_t  SSIPCellID2           = (uint32_t)(0xFF8); // PrimeCell Identification 2
+const uint32_t  SSIPCellID3           = (uint32_t)(0xFFC); // PrimeCell Identification 3
 /****************************************************************/
 
 
