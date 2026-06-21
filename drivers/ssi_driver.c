@@ -1,131 +1,219 @@
 #include <stdint.h>
-#include <assert.h>
+#include "macros.h"
+#include "system_ctrl.h"
+#include "ssi_registers.h"
 #include "ssi_driver.h"
-#include "tm4c123gh6pm_registers.h"
+#include "gpio_driver.h"
 
-static ssi_t * const SSI_TABLE[] =
+static SSI_t * const SSI_TABLE[] =
 {
-    [SSI_MODULE_0] = SYNC_SIMOD0_BASE_ADDR,
-    [SSI_MODULE_1] = SYNC_SIMOD1_BASE_ADDR,
-    [SSI_MODULE_2] = SYNC_SIMOD2_BASE_ADDR,
-    [SSI_MODULE_3] = SYNC_SIMOD3_BASE_ADDR
+    [SSI0] = (SSI_t *)0x40008000,
+    [SSI1] = (SSI_t *)0x40009000,
+    [SSI2] = (SSI_t *)0x4000A000,
+    [SSI3] = (SSI_t *)0x4000B000
 };
 
-static inline
-get_ssi_base (SSI_MODULE module) 
+static inline SSI_t *
+get_ssi_base_addr (SSI_MODULE module)
 {
     return SSI_TABLE[module];
 }
 
-void 
-ssi_init (SSI_MODULE module, SSI_CONFIGS * config)
+static void ssi_gpio_init (SSI_MODULE module, GPIO_PORTS port);
+
+void
+ssi_init (SSI_MODULE module, GPIO_PORTS port, const SSI_CONFIGS * configs)
 {
     enable_clock (SSI, module);
 
-    ssi_t * ssi_mod = get_ssi_base (module);
+    ssi_gpio_init (module, port);
 
-    // Disable 
-    ssi_mod->CR1 &= 0xFFFFFFFD;
+    SSI_t * ssi_mod = get_ssi_base_addr (module);
 
-    // Ctrl type
-    if (config->master_slave == MASTER)
-        ssi_mod->CR1 &= 0xFFFFFFFB;
-    else if (config->master_slave == SLAVE)
-        ssi_mod->CR1 |= 0x4;
+    // Disable
+    ssi_mod->ctrl_1.SSE = DISABLED;
 
-    // Clk source
-    if (config->clock_source == SYSTEM)
-        *(volatile uint32_t *)(ssi_mod + SSICC) = 0;
-    else if (config->clock_source == PIOSC)
-        *(volatile uint32_t *)(ssi_mod + SSICC) = 0x5;
+    // Control Type
+    ssi_mod->ctrl_1.MS = configs->master_slave;
 
-    // Clk prescale divisor 
-    ssi_mod->CPSR = (uint32_t)config->prescale_divisor;
-    // Bit Rate = SysClk / (CPSDVSR * (1 + SRC))
-    //  -> SRC = (SysClk / CPSDVSR * Bit Rate) - 1
-    uint8_t src = (SYS_CLK_RATE / (config->bit_rate * config->prescale_divisor)) - 1;
-    ssi_mod->CR0 |= ((uint32_t)(src) << 8);
+    // Clock Source
+    ssi_mod->clock_config.CS = configs->clock_source;
 
-    // Clk polarity
-    if (config->polarity == STEADY_STATE_LOW)
-        ssi_mod->CR0 &= 0xFFFFFFBF;
-    else if (config->polarity == STEADY_STATE_HIGH)
-        ssi_mod->CR0 |= 0x40;
+    // Prescale Divisor
+    ssi_mod->clock_prescale.CPSDVSR = configs->prescale_divisor;
 
-    // Frame format
-    if (config->frame_format == FREESCALE)
     {
-        ssi_mod->CR0 &= 0xFFFFFFCF;
-        // Clk phase
-        if (config->clock_phase == FIRST_EDGE)
-            ssi_mod->CR0 &= 0xFFFFFF7F;
-        else if (config->clock_phase == SECOND_EDGE)
-            ssi_mod->CR0 |= 0x080;
-    }
-    else if (config->frame_format == TI)
-    {
-        ssi_mod->CR0 |= 0x10;
-    }
-    else if (config->frame_format == MICROWIRE)
-    {
-        ssi_mod->CR0 |= 0x20;
+        uint8_t src = (uint8_t)((SYS_CLK_RATE / (configs->bit_rate * configs->prescale_divisor)) - 1);
+
+        // Clock Polarity
+        uint8_t spo = configs->polarity;
+
+        // Frame Format
+        uint8_t frf = configs->frame_format;
+        uint8_t sph = 0;
+        if (configs->frame_format == FREESCALE)
+            sph = configs->clock_phase;
+
+        // Data Size
+        uint8_t dss;
+        if (configs->data_size >= 4 && configs->data_size <= 16)
+            dss = (uint8_t)configs->data_size - 1;
+        else
+            dss = 0x0F; // Default 16-bit data
+
+        ssi_mod->ctrl_0 =
+        (SSICR0){
+             .DSS = dss,
+             .FRF = frf,
+             .SPH = sph,
+             .SPO = spo,
+             .SRC = src
+        };
     }
 
-    // Datasize
-    if (config->data_size >= 4 && config->data_size <= 16)
-        ssi_mod->CR0 |= (config->data_size - 1);
-    else
-        ssi_mod->CR0 |= 0x0F; // 16-bit if config invalid
-
-    // DMA control
-    if (config->transmit_dma == ENABLED)
-        ssi_mod->DMACTL |= 0x2;
-    else if (config->transmit_dma == DISABLED)
-        ssi_mod->DMACTL &= 0xFFFFFFFD;
-
-    if (config->receive_dma == ENABLED)
-        ssi_mod->DMACTL |= 0x1;
-    else if (config->receive_dma == DISABLED)
-        ssi_mod->DMACTL &= 0xFFFFFFFE;
+    // DMA Control
+    {
+        ssi_mod->dma_ctrl =
+        (SSIDMACTL){
+              .RXDMAE = configs->receive_dma,
+              .TXDMAE = configs->transmit_dma
+        };
+    }
 
     // Enable
-    ssi_mod->CR1 |= 0x2;
+    ssi_mod->ctrl_1.SSE = ENABLED;
 }
 
-uint16_t 
+static void
+ssi_gpio_init (SSI_MODULE module, GPIO_PORTS port)
+{
+    uint8_t pctl = 2;
+    uint8_t clk_pin, fss_pin, rx_pin, tx_pin;
+
+    switch (port)
+    {
+    case PORT_A:
+        if (module == SSI0)
+        {
+            clk_pin = 2;
+            fss_pin = 3;
+            rx_pin = 4;
+            tx_pin = 5;
+        }
+        break;
+
+    case PORT_B:
+        if (module == SSI2)
+        {
+            clk_pin = 4;
+            fss_pin = 5;
+            rx_pin = 6;
+            tx_pin = 7;
+        }
+        break;
+
+    case PORT_D:
+        switch (module)
+        {
+        case SSI3:
+            pctl = 1;
+        case SSI1:
+            clk_pin= 0;
+            fss_pin = 1;
+            rx_pin = 2;
+            tx_pin = 3;
+        default:
+            break;
+        }
+        break;
+
+    case PORT_F:
+        if (module == SSI1)
+        {
+            clk_pin = 2;
+            fss_pin = 3;
+            rx_pin = 0;
+            tx_pin = 1;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    GPIO_CONFIGS ssi_clk_confs =
+    {
+         .direction = GP_OUTPUT,
+         .alternate_function = GPIO_ALTERNATE_FUNCTION,
+         .pulldown_resistor = DISABLED,
+         .pullup_resistor = DISABLED,
+         .digital = ENABLED,
+         .analog = DISABLED,
+         .adc = DISABLED,
+         .dma = DISABLED,
+         .port_control = pctl,
+         .pin = clk_pin
+    };
+
+    GPIO_CONFIGS ssi_fss_confs =
+    {
+         .direction = GP_OUTPUT,
+         .alternate_function = GPIO_ALTERNATE_FUNCTION,
+         .pulldown_resistor = DISABLED,
+         .pullup_resistor = DISABLED,
+         .digital = ENABLED,
+         .analog = DISABLED,
+         .adc = DISABLED,
+         .dma = DISABLED,
+         .port_control = pctl,
+         .pin = fss_pin
+    };
+
+    GPIO_CONFIGS ssi_rx_confs =
+    {
+         .direction = GP_INPUT,
+         .alternate_function = GPIO_ALTERNATE_FUNCTION,
+         .pulldown_resistor = DISABLED,
+         .pullup_resistor = DISABLED,
+         .digital = ENABLED,
+         .analog = DISABLED,
+         .adc = DISABLED,
+         .dma = DISABLED,
+         .port_control = pctl,
+         .pin = rx_pin
+    };
+
+    GPIO_CONFIGS ssi_tx_confs =
+    {
+         .direction = GP_OUTPUT,
+         .alternate_function = GPIO_ALTERNATE_FUNCTION,
+         .pulldown_resistor = DISABLED,
+         .pullup_resistor = DISABLED,
+         .digital = ENABLED,
+         .analog = DISABLED,
+         .adc = DISABLED,
+         .dma = DISABLED,
+         .port_control = pctl,
+         .pin = tx_pin
+    };
+
+    gpio_init (port, &ssi_clk_confs, &ssi_fss_confs, &ssi_rx_confs, &ssi_tx_confs);
+}
+
+uint16_t
 ssi_read (SSI_MODULE module)
 {
-    ssi_t * ssi_mod = get_ssi_base (module);
-    bool busy;
-    do
-    {
-        busy = query_ssi_status (module, BSY);
-    } 
-    while (busy);
+    SSI_t * ssi_mod = get_ssi_base_addr (module);
+    while (ssi_mod->status.BSY == 1);
 
-    return ssi_mod->DR & 0x00FF;
+    return ssi_mod->data.DATA;
 }
 
-void 
+void
 ssi_write (SSI_MODULE module, uint16_t data)
 {
-    ssi_t * ssi_mod = get_ssi_base (module);
-    bool busy;
-    do
-    {
-        busy = query_ssi_status (module, BSY);
-    }
-    while (busy);
+    SSI_t * ssi_mod = get_ssi_base_addr (module);
+    while (ssi_mod->status.BSY == 1);
 
-    ssi_mod->DR = data;
-}
-
-bool 
-query_ssi_status (SSI_MODULE module, SSI_STATUS query)
-{
-    ssi_t * ssi_mod = get_ssi_base (module);
-    if (ssi_mod->SR & (1U << query) != 0)
-        return true;
-
-    return false;
+    ssi_mod->data.DATA = data;
 }

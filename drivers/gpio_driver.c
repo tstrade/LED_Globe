@@ -1,232 +1,122 @@
 #include <stdint.h>
-#include <assert.h>
+#include <stdarg.h>
+#include "macros.h"
+#include "system_ctrl.h"
+#include "gpio_registers.h"
 #include "gpio_driver.h"
-#include "tm4c123gh6pm_registers.h"
 
-static gpio_t * const APB_TABLE[] = 
+static GPIO_t * const GPIO_TABLE[] =
 {
-    [PORT_A] = GPIO_PORTAP_BASE_ADDR,
-    [PORT_B] = GPIO_PORTBP_BASE_ADDR,
-    [PORT_C] = GPIO_PORTCP_BASE_ADDR,
-    [PORT_D] = GPIO_PORTDP_BASE_ADDR,
-    [PORT_E] = GPIO_PORTEP_BASE_ADDR,
-    [PORT_F] = GPIO_PORTFP_BASE_ADDR,
+#if __USE_LEGACY_GPIO_APERATURE__ == false
+    [PORT_A] = (GPIO_t *)0x40058000,
+    [PORT_C] = (GPIO_t *)0x4005A000,
+    [PORT_B] = (GPIO_t *)0x40059000,
+    [PORT_D] = (GPIO_t *)0x4005B000,
+    [PORT_E] = (GPIO_t *)0x4005C000,
+    [PORT_F] = (GPIO_t *)0x4005D000
+#else
+    [PORT_A] = (GPIO_t *)0x40004000,
+    [PORT_B] = (GPIO_t *)0x40005000,
+    [PORT_C] = (GPIO_t *)0x40006000,
+    [PORT_D] = (GPIO_t *)0x40007000,
+    [PORT_E] = (GPIO_t *)0x40024000,
+    [PORT_F] = (GPIO_t *)0x40025000
+#endif /* __USE_LEGACY_GPIO_APERATURE__ */
 };
 
+#define control_gpio_port(reg,function) \
+        {       \
+            switch (pin) { \
+            case 0: reg.PMC0 |= function; break; \
+            case 1: reg.PMC1 |= function; break; \
+            case 2: reg.PMC2 |= function; break; \
+            case 3: reg.PMC3 |= function; break; \
+            case 4: reg.PMC4 |= function; break; \
+            case 5: reg.PMC5 |= function; break; \
+            case 6: reg.PMC6 |= function; break; \
+            case 7: reg.PMC7 |= function; break; \
+            default: break; \
+            } \
+        }
 
-static gpio_t* const AHB_TABLE[] = 
+static inline GPIO_t *
+get_gpio_base_addr (GPIO_PORTS port)
 {
-    [PORT_A] = GPIO_PORTAH_BASE_ADDR,
-    [PORT_B] = GPIO_PORTBH_BASE_ADDR,
-    [PORT_C] = GPIO_PORTCH_BASE_ADDR,
-    [PORT_D] = GPIO_PORTDH_BASE_ADDR,
-    [PORT_E] = GPIO_PORTEH_BASE_ADDR,
-    [PORT_F] = GPIO_PORTFH_BASE_ADDR,
-};
-
-#define get_gpio_base(type,port) ( (gpio_t *) type##_TABLE[port] )
+    return GPIO_TABLE[port];
+}
 
 void
-gpio_init (GPIO_PORT port, port_t type, uint8_t pin, PIN_DIR direction)
+gpio_init (GPIO_PORTS port, const GPIO_CONFIGS * configs, ...)
 {
     enable_clock (GPIO, port);
 
-    gpio_t * gpio_port = GET_GPIO_BASE(type, port);
-    gpio_port->DEN |= (1U << pin);
+    GPIODIR _dir = {};
+    GPIOAFSEL _afsel = {};
+    GPIOPUR _pue = {};
+    GPIOPDR _pde = {};
+    GPIODEN _den = {};
+    GPIOAMSEL _amsel = {};
+    GPIOPCTL _pctl = {};
+    GPIOADCCTL _adcen = {};
+    GPIODMACTL _dmaen = {};
 
-    if (direction != OUTPUT){
-        if (direction == INPUT){
-            //Configure the pin as Input
-            gpio_port->DIR &= ~(1U << pin); 
-        } else {
-            gpio_port->DIR &= ~(1U << pin);
-            if (direction == INPUT_PULLUP){
-                //Configure PULL_UP
-                gpio_port -> PUR |= (1U << pin);
-            } else if (direction == INPUT_PULLDOWN){
-                //COnfigure PULL_DOWN
-                gpio_port -> PDR |= (1U << pin);
-            }
+    const GPIO_CONFIGS * curr = configs;
+    uint8_t pin;
+
+    va_list args;
+    va_start (args, configs);
+
+    while (curr != NULL)
+    {
+        pin = curr->pin;
+        if (pin >= 8)
+        {
+            curr = va_arg (args, const GPIO_CONFIGS *);
+            continue;
         }
-    } else {
-        // Configure the pin as Output
-        gpio_port->DIR |= (1U << pin);
+
+        _dir.DIR |= (curr->direction << pin);
+        _afsel.AFSEL |= (curr->alternate_function << pin);
+        _pue.PUE |= (curr->pullup_resistor << pin);
+        _pde.PDE |= (curr->pulldown_resistor << pin);
+        _den.DEN |= (curr->digital << pin);
+        _amsel.AMSEL |= (curr->analog << pin);
+        control_gpio_port (_pctl, (curr->port_control << (4 * pin)));
+        _adcen.ADCEN |= (curr->adc << pin);
+        _dmaen.DMAEN |= (curr->dma << pin);
+
+        curr = va_arg (args, const GPIO_CONFIGS *);
     }
-    return;
+
+    va_end (args);
+
+    GPIO_t * gpio_port = get_gpio_base_addr (port);
+
+    gpio_port->direction = _dir;
+    gpio_port->alt_function_select = _afsel;
+    gpio_port->pull_up_select = _pue;
+    gpio_port->pull_down_select = _pde;
+    gpio_port->digital_enable = _den;
+    gpio_port->analog_mode_select = _amsel;
+    gpio_port->port_control = _pctl;
+    gpio_port->adc_control = _adcen;
+    gpio_port->dma_control = _dmaen;
 }
 
-//TODO
-//not finished
-void 
-gpio_interrupt_init (GPIO_PORT port)
+uint8_t
+gpio_read (GPIO_PORTS port, uint16_t pin_mask)
 {
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0     && "Check PORT Initialization");
+    GPIO_t * gpio_port = get_gpio_base_addr (port);
+    return gpio_port->data.DATA[(pin_mask << 2)];
 }
-
-
-//AHB READ
-uint8_t 
-read_pin (GPIO_PORT port, uint8_t pin)
-{
-    assert(port <= PORT_F   && "GPIO_PORT port input is out of range");
-    assert(pin <= 7         && "pin value is out of range");
-
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0     && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(AHB, port);
-    return (uint8_t)(((gpio_port->DR[1U<<pin]) >> pin) & 0x1);
-}
-
-uint8_t 
-read_port(GPIO_PORT port)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-    
-    gpio_t *gpio_port = GET_GPIO_BASE(AHB, port);
-    return (uint8_t)(gpio_port->DR[255]);
-}
-
-uint8_t 
-read_field (GPIO_PORT port, uint8_t mask)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(AHB, port);
-    return (uint8_t)(gpio_port->DR[mask]);
-}
-
-//APB READ
-uint8_t read_pin_APB (GPIO_PORT port, uint8_t pin)
-{
-    assert(port <= PORT_F   && "GPIO_PORT port input is out of range");
-    assert(pin <= 7         && "pin value is out of range");
-
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0     && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(APB, port);
-    return (uint8_t)(((gpio_port->DR[1U<<pin]) >> pin) & 0x1);
-}
-
-uint8_t 
-read_port_APB (GPIO_PORT port)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-    
-    gpio_t *gpio_port = GET_GPIO_BASE(APB, port);
-    return (uint8_t)(gpio_port->DR[255]);
-}
-
-uint8_t 
-read_field_APB (GPIO_PORT port, uint8_t mask)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(APB, port);
-    return (uint8_t)(gpio_port->DR[mask]);
-}
-
-
-void 
-output_pin (GPIO_PORT port, uint8_t pin, uint8_t val)
-{
-    assert(port <= PORT_F   && "GPIO_PORT port input is out of range");
-    assert(pin <= 7         && "pin value is out of range");
-
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0     && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(AHB, port);
-    if (val == 0){
-        gpio_port->DR[1U << pin] = 0x00;
-    } else {
-        gpio_port->DR[1U << pin] = 0xFF;
-    }    
-}
-
-
-void 
-output_port (GPIO_PORT port, uint8_t val)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(AHB, port);
-    gpio_port->DR[255] = 0x00;
-    gpio_port->DR[255] |= val;
-}
-
 
 void
-output_field (GPIO_PORT port, uint8_t mask, uint8_t val)
+gpio_write (GPIO_PORTS port, uint16_t pin_mask, uint8_t data)
 {
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(AHB, port);
-    if (val == 0){
-        gpio_port->DR[mask] = 0x00;
-    } else {
-        gpio_port->DR[mask] = 0xFF;
-    }    
+    GPIO_t * gpio_port = get_gpio_base_addr (port);
+    gpio_port->data.DATA[(pin_mask << 2)] = data;
 }
 
 
 
-void 
-output_pin_APB (GPIO_PORT port, uint8_t pin, uint8_t val)
-{
-    assert(port <= PORT_F   && "GPIO_PORT port input is out of range");
-    assert(pin <= 7         && "pin value is out of range");
 
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0     && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(APB, port);
-    if (val == 0){
-        gpio_port->DR[1U << pin] = 0x00;
-    } else {
-        gpio_port->DR[1U << pin] = 0xFF;
-    }    
-}
-
-
-void 
-output_port (GPIO_PORT port, uint8_t val)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(APB, port);
-    gpio_port->DR[255] = 0x00;
-    gpio_port->DR[255] |= val;
-}
-
-
-void
-output_field (GPIO_PORT port, uint8_t mask, uint8_t val)
-{
-    assert(port <= PORT_F       && "GPIO_PORT port input is out of range");
-    uint32_t port_PR = (*((volatile uint32_t *)(SYS_CONTROL_BASE_ADDR + PRGPIO))) & (1U << port);
-    assert(port_PR != 0         && "Check PORT Initialization");
-
-    gpio_t *gpio_port = GET_GPIO_BASE(APB, port);
-    if (val == 0){
-        gpio_port->DR[mask] = 0x00;
-    } else {
-        gpio_port->DR[mask] = 0xFF;
-    }    
-}
