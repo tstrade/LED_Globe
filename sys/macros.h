@@ -11,7 +11,7 @@ typedef enum { false, true } bool;
 typedef enum { DISABLED, ENABLED } mode_t;
 
 #ifndef __USE_LEGACY_GPIO_APERATURE__
-#define __USE_LEGACY_GPIO_APERATURE__ false
+#define __USE_LEGACY_GPIO_APERATURE__ true
 #endif /* __USE_LEGACY_GPIO_APERATURE__ */
 
 #ifndef enable_clock

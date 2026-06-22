@@ -197,7 +197,7 @@ ssi_gpio_init (SSI_MODULE module, GPIO_PORTS port)
          .pin = tx_pin
     };
 
-    gpio_init (port, &ssi_clk_confs, &ssi_fss_confs, &ssi_rx_confs, &ssi_tx_confs);
+    gpio_init (port, &ssi_clk_confs, &ssi_fss_confs, &ssi_rx_confs, &ssi_tx_confs, NULL);
 }
 
 uint16_t

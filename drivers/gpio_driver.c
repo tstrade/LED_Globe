@@ -5,23 +5,25 @@
 #include "gpio_registers.h"
 #include "gpio_driver.h"
 
-static GPIO_t * const GPIO_TABLE[] =
+
+static GPIO_t * const LEGACY_GPIO_TABLE[] =
 {
-#if __USE_LEGACY_GPIO_APERATURE__ == false
-    [PORT_A] = (GPIO_t *)0x40058000,
-    [PORT_C] = (GPIO_t *)0x4005A000,
-    [PORT_B] = (GPIO_t *)0x40059000,
-    [PORT_D] = (GPIO_t *)0x4005B000,
-    [PORT_E] = (GPIO_t *)0x4005C000,
-    [PORT_F] = (GPIO_t *)0x4005D000
-#else
     [PORT_A] = (GPIO_t *)0x40004000,
     [PORT_B] = (GPIO_t *)0x40005000,
     [PORT_C] = (GPIO_t *)0x40006000,
     [PORT_D] = (GPIO_t *)0x40007000,
     [PORT_E] = (GPIO_t *)0x40024000,
     [PORT_F] = (GPIO_t *)0x40025000
-#endif /* __USE_LEGACY_GPIO_APERATURE__ */
+};
+
+static GPIO_t * const HIGHPERF_GPIO_TABLE[] =
+{
+    [PORT_A] = (GPIO_t *)0x40058000,
+    [PORT_C] = (GPIO_t *)0x4005A000,
+    [PORT_B] = (GPIO_t *)0x40059000,
+    [PORT_D] = (GPIO_t *)0x4005B000,
+    [PORT_E] = (GPIO_t *)0x4005C000,
+    [PORT_F] = (GPIO_t *)0x4005D000
 };
 
 #define control_gpio_port(reg,function) \
@@ -42,7 +44,10 @@ static GPIO_t * const GPIO_TABLE[] =
 static inline GPIO_t *
 get_gpio_base_addr (GPIO_PORTS port)
 {
-    return GPIO_TABLE[port];
+    if (__USE_LEGACY_GPIO_APERATURE__ == true)
+        return LEGACY_GPIO_TABLE[port];
+    else
+        return HIGHPERF_GPIO_TABLE[port];
 }
 
 void
