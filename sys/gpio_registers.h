@@ -175,7 +175,7 @@ typedef struct
     GPIOMIS masked_interrupt_status;
     GPIOICR interrupt_clear;
     GPIOAFSEL alt_function_select;
-    uint8_t _reserved[224];
+    uint8_t _reserved[220];
     GPIODR2R drive_select_2mA;
     GPIODR4R drive_select_4mA;
     GPIODR8R drive_select_8mA;

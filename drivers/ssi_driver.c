@@ -72,13 +72,11 @@ ssi_init (SSI_MODULE module, GPIO_PORTS port, const SSI_CONFIGS * configs)
     }
 
     // DMA Control
-    {
-        ssi_mod->dma_ctrl =
-        (SSIDMACTL){
-              .RXDMAE = configs->receive_dma,
-              .TXDMAE = configs->transmit_dma
-        };
-    }
+    ssi_mod->dma_ctrl =
+    (SSIDMACTL){
+          .RXDMAE = configs->receive_dma,
+          .TXDMAE = configs->transmit_dma
+    };
 
     // Enable
     ssi_mod->ctrl_1.SSE = ENABLED;
@@ -204,8 +202,7 @@ uint16_t
 ssi_read (SSI_MODULE module)
 {
     SSI_t * ssi_mod = get_ssi_base_addr (module);
-    while (ssi_mod->status.BSY == 1);
-
+    while (ssi_mod->status.RFF == 0);
     return ssi_mod->data.DATA;
 }
 
@@ -213,7 +210,7 @@ void
 ssi_write (SSI_MODULE module, uint16_t data)
 {
     SSI_t * ssi_mod = get_ssi_base_addr (module);
-    while (ssi_mod->status.BSY == 1);
-
+    while (ssi_mod->status.TFE == 0);
     ssi_mod->data.DATA = data;
+    while (ssi_mod->status.BSY == 1);
 }
