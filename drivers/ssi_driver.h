@@ -2,6 +2,7 @@
 #define __SSI_DRIVER_H__
 
 #include <stdint.h>
+#include "macros.h"
 #include "gpio_registers.h"
 
 typedef enum
@@ -11,12 +12,6 @@ typedef enum
     SSI2,
     SSI3
 } SSI_MODULE;
-
-typedef enum
-{
-    DISABLE_LOOPBACK,
-    ENABLE_LOOPBACK
-} SSI_LOOPBACK;
 
 typedef enum
 {
@@ -49,21 +44,9 @@ typedef enum
     MICROWIRE = 2
 } SSI_FRAMEFORMAT;
 
-typedef enum
-{
-    DISABLE_TXDMA,
-    ENABLE_TXDMA
-} SSI_TXDMA;
-
-typedef enum
-{
-    DISABLE_RXDMA,
-    ENABLE_RXDMA
-} SSI_RXDMA;
-
 typedef struct
 {
-    SSI_LOOPBACK loopback;
+    mode_t loopback;
     SSI_CTRL master_slave;
     SSI_CLKSRC clock_source;
     SSI_CLKPHASE clock_phase;
@@ -72,8 +55,8 @@ typedef struct
     uint8_t data_size;
     uint32_t bit_rate;
     uint8_t prescale_divisor;
-    SSI_TXDMA transmit_dma;
-    SSI_RXDMA receive_dma;
+    mode_t transmit_dma;
+    mode_t receive_dma;
 } SSI_CONFIGS;
 
 void ssi_init (SSI_MODULE module, GPIO_PORTS port, const SSI_CONFIGS * configs);

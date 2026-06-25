@@ -2,6 +2,7 @@
 #define __SYSTEM_CTRL_H__
 
 static const uint32_t SYS_CLK_RATE = (uint32_t)0x04C4B400;
+static const uint32_t PIOSC_CLK_RATE = (uint32_t)0x00F42400;
 
 
 static const uint32_t SYS_CONTROL_BASE_ADDR = (uint32_t)(0x400FE000);

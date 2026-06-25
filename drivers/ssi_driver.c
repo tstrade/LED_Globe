@@ -43,7 +43,16 @@ ssi_init (SSI_MODULE module, GPIO_PORTS port, const SSI_CONFIGS * configs)
     ssi_mod->clock_prescale.CPSDVSR = configs->prescale_divisor;
 
     {
-        uint8_t src = (uint8_t)((SYS_CLK_RATE / (configs->bit_rate * configs->prescale_divisor)) - 1);
+        uint8_t src;
+        if (configs->clock_source == SYSTEM)
+        {
+            src = (uint8_t)((SYS_CLK_RATE / (configs->bit_rate * configs->prescale_divisor)) - 1);
+        }
+        else
+        {
+            src = (uint8_t)((PIOSC_CLK_RATE / (configs->bit_rate * configs->prescale_divisor)) - 1);
+
+        }
 
         // Clock Polarity
         uint8_t spo = configs->polarity;
@@ -212,5 +221,4 @@ ssi_write (SSI_MODULE module, uint16_t data)
     SSI_t * ssi_mod = get_ssi_base_addr (module);
     while (ssi_mod->status.TFE == 0);
     ssi_mod->data.DATA = data;
-    while (ssi_mod->status.BSY == 1);
 }

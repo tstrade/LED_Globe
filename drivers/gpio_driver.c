@@ -26,21 +26,6 @@ static GPIO_t * const HIGHPERF_GPIO_TABLE[] =
     [PORT_F] = (GPIO_t *)0x4005D000
 };
 
-#define control_gpio_port(reg,function) \
-        {       \
-            switch (pin) { \
-            case 0: reg.PMC0 |= function; break; \
-            case 1: reg.PMC1 |= function; break; \
-            case 2: reg.PMC2 |= function; break; \
-            case 3: reg.PMC3 |= function; break; \
-            case 4: reg.PMC4 |= function; break; \
-            case 5: reg.PMC5 |= function; break; \
-            case 6: reg.PMC6 |= function; break; \
-            case 7: reg.PMC7 |= function; break; \
-            default: break; \
-            } \
-        }
-
 static inline GPIO_t *
 get_gpio_base_addr (GPIO_PORTS port)
 {
@@ -86,7 +71,18 @@ gpio_init (GPIO_PORTS port, const GPIO_CONFIGS * configs, ...)
         _pde.PDE |= (curr->pulldown_resistor << pin);
         _den.DEN |= (curr->digital << pin);
         _amsel.AMSEL |= (curr->analog << pin);
-        control_gpio_port (_pctl, (curr->port_control << (4 * pin)));
+        switch (pin)
+        {
+        case 0: _pctl.PMC0 |= curr->port_control; break;
+        case 1: _pctl.PMC1 |= curr->port_control; break;
+        case 2: _pctl.PMC2 |= curr->port_control; break;
+        case 3: _pctl.PMC3 |= curr->port_control; break;
+        case 4: _pctl.PMC4 |= curr->port_control; break;
+        case 5: _pctl.PMC5 |= curr->port_control; break;
+        case 6: _pctl.PMC6 |= curr->port_control; break;
+        case 7: _pctl.PMC7 |= curr->port_control; break;
+        default: break;
+        }
         _adcen.ADCEN |= (curr->adc << pin);
         _dmaen.DMAEN |= (curr->dma << pin);
 
