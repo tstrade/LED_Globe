@@ -3,9 +3,8 @@
 
 #include <stdint.h>
 #include <stdarg.h>
-#include "macros.h"
-#include "gpio_registers.h"
-
+#include "sys/macros.h"
+#include "registers/gpio.h"
 
 typedef enum
 {

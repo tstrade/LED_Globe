@@ -1,7 +1,7 @@
 #include <stdint.h>
-#include "macros.h"
-#include "system_ctrl.h"
-#include "ssi_registers.h"
+#include "sys/macros.h"
+#include "sys/system_ctrl.h"
+#include "registers/ssi.h"
 #include "ssi_driver.h"
 #include "gpio_driver.h"
 

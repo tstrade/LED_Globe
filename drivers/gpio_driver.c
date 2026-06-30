@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdarg.h>
-#include "macros.h"
-#include "system_ctrl.h"
-#include "gpio_registers.h"
+#include "sys/macros.h"
+#include "sys/system_ctrl.h"
+#include "registers/gpio.h"
 #include "gpio_driver.h"
 
 

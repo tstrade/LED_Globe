@@ -2,8 +2,8 @@
 #define __SSI_DRIVER_H__
 
 #include <stdint.h>
-#include "macros.h"
-#include "gpio_registers.h"
+#include "sys/macros.h"
+#include "registers/gpio.h"
 
 typedef enum
 {

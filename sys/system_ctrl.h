@@ -1,5 +1,6 @@
-#ifndef __SYSTEM_CTRL_H__
-#define __SYSTEM_CTRL_H__
+#ifndef REGISTERS_SYS_CTRL_H_
+#define REGISTERS_SYS_CTRL_H_
+
 
 static const uint32_t SYS_CLK_RATE = (uint32_t)0x04C4B400;
 static const uint32_t PIOSC_CLK_RATE = (uint32_t)0x00F42400;
@@ -45,10 +46,13 @@ static const uint32_t RCGCWTIMER            = (uint32_t)(0x65C); // 32/64-Bit Wi
 
 static const uint32_t PRGPIO                = (uint32_t)(0xA08); // General-Purpose Input-Output Peripheral Ready
 static const uint32_t PRSSI                 = (uint32_t)(0xA1C); // Synchronous Serial Interface Peripheral Ready
-
+static const uint32_t PRUART                = (uint32_t)(0xA18); // Universal Asynchronous Reciever-Transmitter Peripheral Ready
 
 static const uint32_t NVI_CONTROL_BASE_ADDR = (uint32_t)(0xE000E000);
 static const uint32_t EN0                   = (uint32_t)(0x100); // Interrupt 0-31 Set Enable
 
 
-#endif /* __SYSTEM_CTRL_H__ */
+
+
+
+#endif /* REGISTERS_SYS_CTRL_H_ */
