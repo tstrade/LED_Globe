@@ -251,3 +251,12 @@ uart_read(UART_MODULE module){
     while (uart_mod->fr.RxFE);
     return (uint8_t)uart_mod->data.DATA;
 }
+
+void
+uart_print(UART_MODULE module, uint8_t * string){
+    uint8_t *ptr = string;
+    while (*ptr != 0x0){
+        uart_output(module, *ptr);
+        ptr = ptr + 1;
+    }
+}

@@ -77,5 +77,6 @@ typedef struct
 void uart_init(UART_MODULE module, GPIO_PORTS port, const UART_CONFIGS * configs);
 void uart_output(UART_MODULE module, uint8_t data);
 uint8_t uart_read(UART_MODULE module);
+void uart_print(UART_MODULE module, uint8_t * string);
 
 #endif
