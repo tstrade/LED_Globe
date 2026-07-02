@@ -37,7 +37,7 @@ uart_init(UART_MODULE module, GPIO_PORTS port, const UART_CONFIGS * configs)
 
     //FIND CLK RATE
     uint32_t clk;
-    UART_CLKSRC clk_src = configs->clock_source;
+    CLKSRC clk_src = configs->clock_source;
 
     //SET SYSTEM CLOCK RATE
     if (clk_src == PIOSC){
@@ -241,14 +241,14 @@ flow_control_gpio_init(UART_MODULE module, GPIO_PORTS port){
 void
 uart_output(UART_MODULE module, uint8_t data){
     UART_Typedef *uart_mod = get_uart_base_addr(module);
-    while (uart_mod->fr.TxFF);
+    while (uart_mod->fr.TxFF == 1);
     uart_mod->data.DATA = (uint8_t) data;
 }
 
 uint8_t
 uart_read(UART_MODULE module){
     UART_Typedef *uart_mod = get_uart_base_addr(module);
-    while (uart_mod->fr.RxFE);
+    while (uart_mod->fr.RxFE == 1);
     return (uint8_t)uart_mod->data.DATA;
 }
 

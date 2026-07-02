@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "sys/macros.h"
+#include "sys/system_ctrl.h"
 #include "registers/gpio.h"
 
 typedef enum
@@ -16,11 +17,6 @@ typedef enum
     UART_6,
     UART_7
 } UART_MODULE;
-
-typedef enum{
-    SYSTEM = 0,
-    PIOSC = 5
-} UART_CLKSRC;
 
 typedef enum {
     ODD,
@@ -67,7 +63,7 @@ typedef struct
     uint32_t baud_rate;
     UART_STOPBIT stop_bits;
     UART_PARITY parity_select;
-    UART_CLKSRC clock_source;
+    CLKSRC clock_source;
     UART_TX_FIFO_LEVEL tx_fifo_level;
     UART_RX_FIFO_LEVEL rx_fifo_level;
     mode_t transmit_dma;
@@ -75,8 +71,11 @@ typedef struct
 } UART_CONFIGS;
 
 void uart_init(UART_MODULE module, GPIO_PORTS port, const UART_CONFIGS * configs);
+void uart_interrupt_init(UART_MODULE module, GPIO_PORTS port);
+
 void uart_output(UART_MODULE module, uint8_t data);
 uint8_t uart_read(UART_MODULE module);
+
 void uart_print(UART_MODULE module, uint8_t * string);
 
 #endif

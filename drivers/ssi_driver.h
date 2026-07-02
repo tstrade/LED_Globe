@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "sys/macros.h"
+#include "sys/system_ctrl.h"
 #include "registers/gpio.h"
 
 typedef enum
@@ -12,12 +13,6 @@ typedef enum
     SSI2,
     SSI3
 } SSI_MODULE;
-
-typedef enum
-{
-    SYSTEM = 0,
-    PIOSC = 5
-} SSI_CLKSRC;
 
 typedef enum
 {
@@ -48,7 +43,7 @@ typedef struct
 {
     mode_t loopback;
     SSI_CTRL master_slave;
-    SSI_CLKSRC clock_source;
+    CLKSRC clock_source;
     SSI_CLKPHASE clock_phase;
     SSI_POLARITY polarity;
     SSI_FRAMEFORMAT frame_format;

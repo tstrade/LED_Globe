@@ -52,7 +52,10 @@ static const uint32_t NVI_CONTROL_BASE_ADDR = (uint32_t)(0xE000E000);
 static const uint32_t EN0                   = (uint32_t)(0x100); // Interrupt 0-31 Set Enable
 
 
-
+typedef enum{
+    SYSTEM = 0,
+    PIOSC = 5
+} CLKSRC;
 
 
 #endif /* REGISTERS_SYS_CTRL_H_ */
